@@ -14,6 +14,8 @@ import (
 
 type ReadTransferSession struct {
 	r        io.ReadCloser
+	closed   bool
+	closeErr error
 	Progress atomic.Int64
 	Size     func() (int64, error)
 }
@@ -25,6 +27,9 @@ func (rts *ReadTransferSession) Read(p []byte) (int, error) {
 }
 
 func (rts *ReadTransferSession) Close() error {
+	if rts.closed {
+		return rts.closeErr
+	}
 	return rts.r.Close()
 }
 
@@ -178,6 +183,12 @@ type archiveReaderConfig struct {
 func (c *archiveReaderConfig) NewReaderTransferSession(ctx context.Context) (*ReadTransferSession, error) {
 	if c.buf == nil {
 		r, w := io.Pipe()
+		rts := &ReadTransferSession{
+			r: r,
+			Size: func() (int64, error) {
+				return 0, fmt.Errorf("NA")
+			},
+		}
 		go func() {
 			var err error
 			switch c.format {
@@ -189,17 +200,12 @@ func (c *archiveReaderConfig) NewReaderTransferSession(ctx context.Context) (*Re
 				err = tarball(true, c.paths, w)
 			}
 			if err != nil {
-				//TODO: don't panic
-				panic(err)
+				rts.closed = true
+				rts.closeErr = r.CloseWithError(err)
 			}
 			w.Close()
 		}()
-		return &ReadTransferSession{
-			r: r,
-			Size: func() (int64, error) {
-				return 0, fmt.Errorf("NA")
-			},
-		}, nil
+		return rts, nil
 	}
 
 	buf := bytes.NewBuffer(c.buf)

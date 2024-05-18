@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"errors"
+	"flag"
 	"io"
 	"net/http"
 	"os"
@@ -18,8 +19,11 @@ import (
 
 	itest "github.com/forestnode-io/oneshot/v2/integration_testing"
 	"github.com/forestnode-io/oneshot/v2/pkg/output"
+	"github.com/go-git/go-git/v5"
 	"github.com/stretchr/testify/suite"
 )
+
+var withoutInternet = flag.Bool("without-internet", false, "skip tests that require internet access")
 
 func TestBasicTestSuite(t *testing.T) {
 	suite.Run(t, new(ts))
@@ -273,8 +277,15 @@ func (suite *ts) Test_Send_Directory_targz() {
 	var oneshot = suite.NewOneshot()
 	oneshot.Args = []string{"send", "./testDir"}
 	oneshot.Files = itest.FilesMap{
-		"./testDir/test.txt":  []byte("SUCCESS"),
-		"./testDir/test2.txt": []byte("SUCCESS2"),
+		"./testDir/testDir1/testDir1_1/test.txt":  []byte("SUCCESS"),
+		"./testDir/testDir1/testDir1_1/test2.txt": []byte("SUCCESS2"),
+		"./testDir/testDir1/testDir1_2/test3.txt": []byte("SUCCESS3"),
+		"./testDir/testDir1/testDir1_2/test4.txt": []byte("SUCCESS4"),
+		"./testDir/testDir2/testDir2_1/test5.txt": []byte("SUCCESS5"),
+		"./testDir/testDir2/testDir2_1/test6.txt": []byte("SUCCESS6"),
+		"./testDir/testDir2/testDir2_2/test7.txt": []byte("SUCCESS7"),
+		"./testDir/testDir3/test8.txt":            []byte("SUCCESS"),
+		"./testDir/testDir/test9.txt":             []byte("SUCCESS2"),
 	}
 	oneshot.Start()
 	defer oneshot.Cleanup()
@@ -295,13 +306,58 @@ func (suite *ts) Test_Send_Directory_targz() {
 	tarOut, err := exec.Command("tar", "-xzf", tarFileName, "-C", suite.TestDir).CombinedOutput()
 	suite.Require().NoError(err, string(tarOut))
 
-	fileBytes, err := os.ReadFile(filepath.Join(suite.TestDir, "testDir", "test.txt"))
-	suite.Require().NoError(err)
-	suite.Assert().Equal("SUCCESS", string(fileBytes))
+	for name, content := range oneshot.Files {
+		path := filepath.Join(suite.TestDir, name[2:])
+		fileBytes, err := os.ReadFile(path)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(string(content), string(fileBytes))
+	}
 
-	fileBytes, err = os.ReadFile(filepath.Join(suite.TestDir, "testDir", "test2.txt"))
+	oneshot.Wait()
+}
+
+func (suite *ts) Test_Send_Oneshot_Directory_targz() {
+	if *withoutInternet {
+		suite.T().Skip("skipping test that requires internet access")
+	}
+
+	var oneshot = suite.NewOneshot()
+	oneshot.Args = []string{"send", "./oneshot"}
+
+	oneshotRepoPath := filepath.Join(oneshot.WorkingDir, "oneshot")
+
+	_, err := git.PlainClone(oneshotRepoPath, false, &git.CloneOptions{
+		URL:   "https://github.com/forestnode-io/oneshot",
+		Depth: 1,
+	})
 	suite.Require().NoError(err)
-	suite.Assert().Equal("SUCCESS2", string(fileBytes))
+
+	oneshot.Start()
+	defer oneshot.Cleanup()
+
+	// ---
+
+	client := itest.RetryClient{}
+	resp, err := client.Get("http://127.0.0.1:8080")
+	suite.Require().NoError(err)
+	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
+
+	oneshotCopyTarPath := filepath.Join(oneshot.WorkingDir, "oneshot-copy.tar.gz")
+	oneshotCopyTarFile, err := os.Create(oneshotCopyTarPath)
+	suite.Require().NoError(err)
+	defer oneshotCopyTarFile.Close()
+	_, err = io.Copy(oneshotCopyTarFile, resp.Body)
+	suite.Require().NoError(err)
+
+	oneshotCopyPath := filepath.Join(oneshot.WorkingDir, "oneshot-copy")
+	err = os.Mkdir(oneshotCopyPath, 0700)
+	suite.Require().NoError(err)
+
+	tarOut, err := exec.Command("tar", "-xzf", oneshotCopyTarPath, "-C", oneshotCopyPath).CombinedOutput()
+	suite.Require().NoError(err, string(tarOut))
+
+	diffOut, err := exec.Command("diff", "-qr", oneshotRepoPath, filepath.Join(oneshotCopyPath, "oneshot")).CombinedOutput()
+	suite.Require().NoError(err, string(diffOut))
 
 	oneshot.Wait()
 }

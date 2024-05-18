@@ -138,16 +138,14 @@ type TestSuite struct {
 func (suite *TestSuite) SetupSuite() {
 	tempDir, err := os.MkdirTemp("", "")
 	suite.Require().NoError(err)
-
-	suite.Require().NoError(err)
 	suite.TestDir = tempDir
 
 	cmdPath, err := filepath.EvalSymlinks("../../build-output/oneshot")
 	suite.Require().NoError(err)
 
-	newCmdPath := filepath.Join(filepath.Dir(suite.TestDir), "oneshot.testing")
-	_, err = exec.Command("cp", cmdPath, newCmdPath).CombinedOutput()
-	suite.Require().NoError(err)
+	newCmdPath := filepath.Join(suite.TestDir, "oneshot.testing")
+	cpOPut, err := exec.Command("cp", cmdPath, newCmdPath).CombinedOutput()
+	suite.Require().NoError(err, "failed to copy oneshot binary: %s", string(cpOPut))
 
 	err = os.Chdir(suite.TestDir)
 	suite.Require().NoError(err)

@@ -40,6 +40,10 @@ image:
 itest: $(APP_NAME)
 	go test -count 1 -p 1 -timeout 30s ./integration_testing/...
 
+.PHONY: itest-full
+itest-without-internet: $(APP_NAME)
+	go test -without-internet -count 1 -p 1 -timeout 30s ./integration_testing/...
+
 .PHONY: lint
 lint:
 	$(GOBIN)/golangci-lint run

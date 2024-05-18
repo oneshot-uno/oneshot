@@ -179,13 +179,18 @@ func (c *archiveReaderConfig) NewReaderTransferSession(ctx context.Context) (*Re
 	if c.buf == nil {
 		r, w := io.Pipe()
 		go func() {
+			var err error
 			switch c.format {
 			case "zip":
-				_ = zip(c.paths, w)
+				err = zip(c.paths, w)
 			case "tar":
-				_ = tarball(false, c.paths, w)
+				err = tarball(false, c.paths, w)
 			default:
-				_ = tarball(true, c.paths, w)
+				err = tarball(true, c.paths, w)
+			}
+			if err != nil {
+				//TODO: don't panic
+				panic(err)
 			}
 			w.Close()
 		}()

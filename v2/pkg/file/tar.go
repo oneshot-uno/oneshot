@@ -3,6 +3,7 @@ package file
 import (
 	"archive/tar"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -29,44 +30,49 @@ func tarball(compress bool, paths []string, w io.Writer) error {
 		return name
 	}
 
-	writeFile := func(path, name string, info os.FileInfo) error {
-		header := tar.Header{
-			Name:    name,
-			Size:    info.Size(),
-			Mode:    int64(info.Mode()),
-			ModTime: info.ModTime(),
-		}
-		if err := tw.WriteHeader(&header); err != nil {
-			return err
-		}
-
-		currFile, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-
-		_, err = io.Copy(tw, currFile)
-		currFile.Close()
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
 	walkFunc := func(path string) func(string, os.FileInfo, error) error {
 		dir := filepath.Dir(path)
 		return func(fp string, info os.FileInfo, err error) error {
-			if info.IsDir() {
-				return nil
-			} else if err != nil {
+			if err != nil {
 				return err
 			}
 
-			name := strings.TrimPrefix(fp, dir)
-			name = formatName(name)
+			var link string
 
-			if err = writeFile(fp, name, info); err != nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				link, err = os.Readlink(fp)
+				if err != nil {
+					return fmt.Errorf("failed to read symlink %s: %w", fp, err)
+				}
+			}
+
+			header, err := tar.FileInfoHeader(info, link)
+			if err != nil {
+				return err
+			}
+
+			header.Name = strings.TrimPrefix(fp, dir)
+			header.Name = formatName(header.Name)
+
+			if header.Name == "" {
+				return nil
+			}
+
+			if err = tw.WriteHeader(header); err != nil {
+				return err
+			}
+
+			if !info.Mode().IsRegular() {
+				return nil
+			}
+
+			fh, err := os.Open(fp)
+			if err != nil {
+				return err
+			}
+			defer fh.Close()
+
+			if _, err = io.Copy(tw, fh); err != nil {
 				return err
 			}
 
@@ -80,17 +86,13 @@ func tarball(compress bool, paths []string, w io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() { // Archiving a file
-			name := filepath.Base(path)
-			name = formatName(name)
-
-			err = writeFile(path, name, info)
+		if info.IsDir() { // Archiving a directory; needs to be walked
+			err := filepath.Walk(path, walkFunc(path))
 			if err != nil {
 				return err
 			}
-		} else { // Archiving a directory; needs to be walked
-			err := filepath.Walk(path, walkFunc(path))
-			if err != nil {
+		} else { // Archiving a single file or symlink
+			if err = walkFunc(path)(path, info, nil); err != nil {
 				return err
 			}
 		}

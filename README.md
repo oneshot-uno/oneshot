@@ -36,8 +36,8 @@ For some portion of Linux users, there are .deb and .rpm packages available in t
 
 ##### Brew
 ```bash
-brew tap oneshot-uno/homebrew-tap
-brew install oneshot-uno/homebrew-tap/oneshot
+brew tap forestnode-io/brew
+brew install forestnode-io/brew/oneshot
 ```
 
 ##### Go get

@@ -41,6 +41,24 @@ func (r *rootCommand) init(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to hydrate configuration: %w", err)
 	}
 
+	if r.config.Discovery.Addr != "" {
+		host, port, err := net.SplitHostPort(r.config.Discovery.Addr)
+		if err != nil {
+			if !strings.Contains(err.Error(), "missing port in address") {
+				return fmt.Errorf("failed to parse discovery server URL: %w", err)
+			}
+			host = r.config.Discovery.Addr
+		}
+		if port == "" {
+			if r.config.Discovery.Insecure {
+				port = "80"
+			} else {
+				port = "443"
+			}
+		}
+		r.config.Discovery.Addr = net.JoinHostPort(host, port)
+	}
+
 	if r.config.Output.Quiet {
 		output.Quiet(ctx)
 	} else {
@@ -140,7 +158,7 @@ func (r *rootCommand) runServer(cmd *cobra.Command, args []string) error {
 	dsConfig := r.config.Discovery
 	connConf := signallingserver.DiscoveryServerConfig{
 		Enabled:                   dsConfig.Enabled,
-		URL:                       dsConfig.Host,
+		URL:                       dsConfig.Addr,
 		Key:                       dsConfig.Key,
 		Insecure:                  dsConfig.Insecure,
 		SendReports:               dsConfig.Reports.Enabled,
@@ -152,7 +170,7 @@ func (r *rootCommand) runServer(cmd *cobra.Command, args []string) error {
 			APIVersion: version.APIVersion,
 		},
 	}
-	if err := signallingserver.ConnectToDiscoveryServer(ctx, connConf); err != nil {
+	if err := signallingserver.ConnectToDiscoveryServer(ctx, &connConf); err != nil {
 		log.Error().Err(err).
 			Msg("failed to connect to discovery server")
 	} else {

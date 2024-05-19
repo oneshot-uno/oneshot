@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/moby/moby/pkg/namesgenerator"
 	"github.com/forestnode-io/oneshot/v2/pkg/commands/p2p/client/discovery"
 	"github.com/forestnode-io/oneshot/v2/pkg/commands/p2p/client/send/configuration"
 	rootconfig "github.com/forestnode-io/oneshot/v2/pkg/configuration"
@@ -22,6 +21,7 @@ import (
 	"github.com/forestnode-io/oneshot/v2/pkg/net/webrtc/sdp/signallers"
 	oneshotos "github.com/forestnode-io/oneshot/v2/pkg/os"
 	"github.com/forestnode-io/oneshot/v2/pkg/output"
+	"github.com/moby/moby/pkg/namesgenerator"
 	"github.com/pion/webrtc/v3"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
@@ -69,7 +69,7 @@ func (c *Cmd) send(cmd *cobra.Command, args []string) error {
 
 		fileName            = config.Name
 		webRTCSignallingDir = p2pConfig.DiscoveryDir
-		webRTCSignallingURL = dsConfig.Host
+		webRTCSignallingURL = dsConfig.Addr
 
 		err error
 	)

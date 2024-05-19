@@ -18,7 +18,7 @@ func (r *rootCommand) sendArrivalToDiscoveryServer(ctx context.Context, cmd stri
 		dsConfig = config.Discovery
 	)
 
-	if dsConfig.Host == "" {
+	if dsConfig.Addr == "" {
 		return nil
 	}
 
@@ -29,11 +29,14 @@ func (r *rootCommand) sendArrivalToDiscoveryServer(ctx context.Context, cmd stri
 		Cmd:                cmd,
 	}
 
-	ipThatCanReachDiscoveryServer, err := oneshotnet.GetSourceIP(dsConfig.Host, 0)
+	ipThatCanReachDiscoveryServer, err := oneshotnet.GetSourceIP(dsConfig.Addr, 0)
 	if err != nil {
 		return fmt.Errorf("unable to reach the discovery server: %w", err)
 	}
-	arrival.Redirect = ipThatCanReachDiscoveryServer
+	arrival.Redirect = ipThatCanReachDiscoveryServer.String()
+	if ipThatCanReachDiscoveryServer.To16() != nil {
+		arrival.Redirect = "[" + arrival.Redirect + "]"
+	}
 
 	scheme := "http"
 	if config.Server.TLSCert != "" {

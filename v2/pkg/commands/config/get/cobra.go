@@ -1,6 +1,7 @@
 package get
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/forestnode-io/oneshot/v2/pkg/configuration"
@@ -31,7 +32,7 @@ func (c *Cmd) Cobra() *cobra.Command {
 		Short: "Get an individual value from a oneshot configuration file.",
 		Long:  "Get an individual value from a oneshot configuration file.",
 		RunE:  c.run,
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 	}
 
 	c.cobraCommand.SetUsageTemplate(usageTemplate)
@@ -40,7 +41,41 @@ func (c *Cmd) Cobra() *cobra.Command {
 }
 
 func (c *Cmd) run(cmd *cobra.Command, args []string) error {
-	configData := viper.Get(args[0])
+	m := map[string]any{}
+	err := viper.Unmarshal(&m)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal configuration: %w", err)
+	}
+
+	dc, ok := m["discovery"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("failed to get discovery configuration")
+	}
+
+	key, ok := dc["key"].(string)
+	if !ok {
+		return fmt.Errorf("failed to get discovery key")
+	}
+
+	if key != "" {
+		if 8 < len(key) {
+			key = key[:8] + "..."
+		} else {
+			key = "********"
+		}
+		viper.Set("discovery.key", key)
+	}
+	dc["key"] = key
+	m["discovery"] = dc
+
+	v := viper.New()
+	v.MergeConfigMap(m)
+
+	if len(args) == 0 || args[0] == "" {
+		return yaml.NewEncoder(os.Stdout).Encode(v.AllSettings())
+	}
+
+	configData := v.Get(args[0])
 	if configData == nil {
 		return output.UsageErrorF("no such key: %s", args[0])
 	}

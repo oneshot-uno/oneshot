@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackpal/gateway"
 	"github.com/forestnode-io/oneshot/v2/pkg/log"
+	"github.com/jackpal/gateway"
 )
 
 // HostAddresses returns all available ip addresses from all interfaces
@@ -45,11 +45,11 @@ func HostAddresses() ([]string, error) {
 // GetSourceIP returns the ip address used to access target:port
 // If target is the empty string then the default gateway ip is used.
 // If the port is 0, then 80 is used by default.
-func GetSourceIP(target string, port int) (string, error) {
+func GetSourceIP(target string, port int) (net.IP, error) {
 	if target == "" {
 		ip, err := gateway.DiscoverGateway()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 		target = ip.String()
 	}
@@ -64,13 +64,13 @@ func GetSourceIP(target string, port int) (string, error) {
 		conn, err = net.Dial("udp", target)
 	}
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer conn.Close()
 
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 
-	return localAddr.IP.String(), nil
+	return localAddr.IP, nil
 }
 
 func PreferNonPrivateIP(ips []string) (string, string) {

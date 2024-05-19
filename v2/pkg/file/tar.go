@@ -30,7 +30,7 @@ func tarball(compress bool, paths []string, w io.Writer) error {
 		return name
 	}
 
-	walkFunc := func(path string) func(string, os.FileInfo, error) error {
+	walkFunc := func(path string, buf []byte) func(string, os.FileInfo, error) error {
 		dir := filepath.Dir(path)
 		return func(fp string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -72,7 +72,7 @@ func tarball(compress bool, paths []string, w io.Writer) error {
 			}
 			defer fh.Close()
 
-			if _, err = io.Copy(tw, fh); err != nil {
+			if _, err = io.CopyBuffer(tw, fh, buf); err != nil {
 				return err
 			}
 
@@ -87,12 +87,18 @@ func tarball(compress bool, paths []string, w io.Writer) error {
 			return err
 		}
 		if info.IsDir() { // Archiving a directory; needs to be walked
-			err := filepath.Walk(path, walkFunc(path))
+			buf := make([]byte, 32*1024)
+			err := filepath.Walk(path, walkFunc(path, buf))
 			if err != nil {
 				return err
 			}
 		} else { // Archiving a single file or symlink
-			if err = walkFunc(path)(path, info, nil); err != nil {
+			size := info.Size()
+			if size == 0 {
+				size = 32 * 1024
+			}
+			buf := make([]byte, size)
+			if err = walkFunc(path, buf)(path, info, nil); err != nil {
 				return err
 			}
 		}

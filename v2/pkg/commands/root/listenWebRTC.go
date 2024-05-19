@@ -85,7 +85,7 @@ func getSignaller(ctx context.Context, config *configuration.Root, portMapAddr s
 	var (
 		dsConf              = config.Discovery
 		p2pConf             = config.NATTraversal.P2P
-		webRTCSignallingURL = dsConf.Host
+		webRTCSignallingURL = dsConf.Addr
 		webRTCSignallingDir = p2pConf.DiscoveryDir
 	)
 

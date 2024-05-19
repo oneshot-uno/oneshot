@@ -111,18 +111,12 @@ func RestoreCursor(ctx context.Context) {
 	do.ShowCursor()
 }
 
-// ReceivingToStdout ensures that only the appropriate content is sent to stdout.
-// The summary is flagged to be skipped and if outputting json, make sure we have initiated the buffer
-// that holds the received content.
 func ReceivingToStdout(ctx context.Context) {
-	o := getOutput(ctx)
+	getOutput(ctx).receivingToStdout = true
+}
 
-	o.skipSummary = true
-	if o.Format == "json" {
-		if o.receivedBuf == nil {
-			o.receivedBuf = bytes.NewBuffer(nil)
-		}
-	}
+func WriteAllReceivedInputToStdout(ctx context.Context) {
+	getOutput(ctx).writeAllReceivedInputToStdout = true
 }
 
 func Wait(ctx context.Context) {
@@ -134,12 +128,15 @@ func Wait(ctx context.Context) {
 
 func GetBufferedWriteCloser(ctx context.Context) io.WriteCloser {
 	o := getOutput(ctx)
-	return &writer{os.Stdout, o.receivedBuf}
+	if !o.receivingToStdout || o.Format == "json" || !o.writeAllReceivedInputToStdout {
+		return &writer{}
+	}
+	return &writer{os.Stdout}
 }
 
 func DisplayProgress(ctx context.Context, prog *atomic.Int64, period time.Duration, host string, total int64) func() {
 	o := getOutput(ctx)
-	if o.quiet || o.Format == "json" {
+	if o.receivingToStdout || o.quiet || o.Format == "json" {
 		return func() {}
 	}
 
@@ -259,13 +256,12 @@ func (t teeWriter) WriteHeader(code int) {
 }
 
 type writer struct {
-	w   io.Writer
-	buf *bytes.Buffer
+	w io.Writer
 }
 
 func (w *writer) Write(p []byte) (int, error) {
-	if b := w.buf; b != nil {
-		return b.Write(p)
+	if w.w == nil {
+		return len(p), nil
 	}
 	return w.w.Write(p)
 }

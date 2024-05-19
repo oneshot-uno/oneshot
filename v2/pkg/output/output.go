@@ -1,7 +1,6 @@
 package output
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -36,9 +35,9 @@ type output struct {
 	Format     string
 	FormatOpts map[string]struct{}
 
-	skipSummary bool
-	includeBody bool
-	receivedBuf *bytes.Buffer
+	includeBody                   bool
+	writeAllReceivedInputToStdout bool
+	receivingToStdout             bool
 
 	disconnectedClients  []*ClientSession
 	currentClientSession *ClientSession
@@ -86,7 +85,7 @@ func (o *output) run(ctx context.Context) error {
 }
 
 func (o *output) writeListeningOnQRCode(addr string) {
-	if o.skipSummary || o.quiet || addr == "" {
+	if o.quiet || addr == "" {
 		return
 	}
 
@@ -104,7 +103,7 @@ func (o *output) writeListeningOnQRCode(addr string) {
 }
 
 func (o *output) writeListeningOn(addr string) {
-	if o.skipSummary || o.quiet || addr == "" {
+	if o.quiet || addr == "" {
 		return
 	}
 
@@ -114,21 +113,11 @@ func (o *output) writeListeningOn(addr string) {
 // ttyCheck checks if stdin, stdout, and stderr are ttys
 // and records it in o.
 func (o *output) ttyCheck() error {
-	stat, err := os.Stdout.Stat()
-	if err != nil {
-		return err
-	}
-
-	stat, err = os.Stderr.Stat()
+	stat, err := os.Stderr.Stat()
 	if err != nil {
 		return err
 	}
 	stderrIsTTY := (stat.Mode() & os.ModeCharDevice) == os.ModeCharDevice
-
-	stat, err = os.Stderr.Stat()
-	if err != nil {
-		return err
-	}
 
 	// if we're running in a docker container, assume both stdout and stderr are ttys
 	if _, err := os.Stat("/.dockerenv"); err == nil {
@@ -178,6 +167,9 @@ type ClientSession struct {
 }
 
 func newClientSessionMessage(s *ClientSession) *messages.ClientSession {
+	if s == nil {
+		return nil
+	}
 	return &messages.ClientSession{
 		Request:  messages.HTTPRequestFromEvent(s.Request),
 		File:     messages.FileFromEvent(s.File),

@@ -124,7 +124,23 @@ func _json_handleContextDone(ctx context.Context, o *output) {
 			Msg("connection cancelled event")
 	}
 
-	// if serving to stdout
+	if o.receivingToStdout && !o.writeAllReceivedInputToStdout && !(o.Format == "json") {
+		if o.currentClientSession != nil {
+			if o.currentClientSession.Request != nil {
+				if err := o.currentClientSession.Request.ReadBody(); err != nil {
+					log.Error().Err(err).
+						Msg("error reading request body buffer")
+				}
+
+				bodyBytes, ok := o.currentClientSession.Request.Body.([]byte)
+				if ok {
+					os.Stdout.Write(bodyBytes)
+				}
+			}
+		}
+	}
+
+	// if we want to include the body
 	if o.includeBody {
 		// and we have a client session
 		if o.currentClientSession != nil {

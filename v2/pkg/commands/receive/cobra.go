@@ -10,12 +10,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/icholy/replace"
 	"github.com/forestnode-io/oneshot/v2/pkg/commands"
 	"github.com/forestnode-io/oneshot/v2/pkg/commands/receive/configuration"
 	rootconfig "github.com/forestnode-io/oneshot/v2/pkg/configuration"
 	"github.com/forestnode-io/oneshot/v2/pkg/file"
 	"github.com/forestnode-io/oneshot/v2/pkg/output"
+	"github.com/icholy/replace"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
@@ -105,6 +105,10 @@ func (c *Cmd) setHandlerFunc(cmd *cobra.Command, args []string) error {
 
 	if config.IncludeBody {
 		output.IncludeBody(ctx)
+	}
+
+	if config.StreamToStdout {
+		output.WriteAllReceivedInputToStdout(ctx)
 	}
 
 	var location string

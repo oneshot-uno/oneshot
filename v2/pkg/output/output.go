@@ -1,7 +1,6 @@
 package output
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -36,9 +35,9 @@ type output struct {
 	Format     string
 	FormatOpts map[string]struct{}
 
-	includeBody       bool
-	receivingToStdout bool
-	receivedBuf       *bytes.Buffer
+	includeBody                   bool
+	writeAllReceivedInputToStdout bool
+	receivingToStdout             bool
 
 	disconnectedClients  []*ClientSession
 	currentClientSession *ClientSession
@@ -168,6 +167,9 @@ type ClientSession struct {
 }
 
 func newClientSessionMessage(s *ClientSession) *messages.ClientSession {
+	if s == nil {
+		return nil
+	}
 	return &messages.ClientSession{
 		Request:  messages.HTTPRequestFromEvent(s.Request),
 		File:     messages.FileFromEvent(s.File),

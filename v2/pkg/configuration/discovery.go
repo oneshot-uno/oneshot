@@ -22,7 +22,7 @@ type Reports struct {
 
 type Discovery struct {
 	Enabled      bool    `mapstructure:"enabled" yaml:"enabled"`
-	Host         string  `mapstructure:"host" yaml:"host"`
+	Addr         string  `mapstructure:"addr" yaml:"addr"`
 	Key          string  `mapstructure:"key" yaml:"key" json:"-"`
 	KeyPath      string  `mapstructure:"keyPath" yaml:"keyPath"`
 	Insecure     bool    `mapstructure:"insecure" yaml:"insecure"`
@@ -37,7 +37,7 @@ func setDiscoveryFlags(cmd *cobra.Command) {
 	defer cmd.PersistentFlags().AddFlagSet(fs)
 
 	flags.Bool(fs, "discovery.enabled", "discovery-enabled", "Enable discovery server.")
-	flags.String(fs, "discovery.url", "discovery-url", "URL of the discovery server to connect to.")
+	flags.String(fs, "discovery.addr", "discovery-addr", "Address (host:port) of the discovery server to connect to.")
 	flags.String(fs, "discovery.keypath", "discovery-key-path", "Path to the key to present to the discovery server.")
 	flags.String(fs, "discovery.key", "discovery-key", "Key to present to the discovery server.")
 	fs.Lookup("discovery-key").DefValue = ""

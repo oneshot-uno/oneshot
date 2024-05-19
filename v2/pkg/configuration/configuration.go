@@ -188,7 +188,7 @@ func setDefault() {
 
 	// discovery
 	viper.SetDefault("discovery.enabled", true)
-	viper.SetDefault("discovery.host", "")
+	viper.SetDefault("discovery.addr", "")
 	viper.SetDefault("discovery.key", "")
 	viper.SetDefault("discovery.keypath", "")
 	viper.SetDefault("discovery.insecure", false)

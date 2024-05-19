@@ -70,14 +70,19 @@ func WithDiscoveryServer(ctx context.Context) (context.Context, <-chan struct{})
 
 // ConnectToDiscoveryServer connects to the discovery server and sends a handshake.
 // The connection is kept open and stuffed into the context.
-func ConnectToDiscoveryServer(ctx context.Context, c DiscoveryServerConfig) error {
+func ConnectToDiscoveryServer(ctx context.Context, c *DiscoveryServerConfig) error {
 	dds, ok := ctx.Value(discoveryServerKey{}).(**DiscoveryServer)
 	if !ok || dds == nil {
 		return nil
 	}
 
+	defer func() {
+		if (*dds).config == nil {
+			(*dds).config = c
+		}
+	}()
+
 	if !c.Enabled {
-		(*dds).config = &c
 		return nil
 	}
 
@@ -85,17 +90,17 @@ func ConnectToDiscoveryServer(ctx context.Context, c DiscoveryServerConfig) erro
 	log := zerolog.Ctx(ctx)
 
 	log.Debug().Msg("connecting to discovery server")
-	conn, err := getConnectionToDiscoveryServer(ctx, &c)
+	conn, err := getConnectionToDiscoveryServer(ctx, c)
 	if err != nil {
 		return fmt.Errorf("failed to connect to discovery server: %w", err)
 	}
 
 	log.Debug().Msg("opening bidirectional stream to discovery server")
-	ds, err := newDiscoveryServer(ctx, &c, conn)
+	ds, err := newDiscoveryServer(ctx, c, conn)
 	if err != nil {
 		return fmt.Errorf("failed to create discovery server: %w", err)
 	}
-	ds.config = &c
+	ds.config = c
 	ds.doneFunc = (*dds).doneFunc
 	*dds = ds
 	return nil

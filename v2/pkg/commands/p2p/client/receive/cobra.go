@@ -126,7 +126,7 @@ func (c *Cmd) receive(cmd *cobra.Command, args []string) error {
 
 		signaller, bat, err = signallers.NewFileClientSignaller(offerFilePath, answerFilePath)
 	} else {
-		corr, err := discovery.NegotiateOfferRequest(ctx, dsConfig.Host, baConfig.Username, baConfig.Password, http.DefaultClient)
+		corr, err := discovery.NegotiateOfferRequest(ctx, dsConfig.Addr, baConfig.Username, baConfig.Password, http.DefaultClient)
 		if err != nil {
 			return fmt.Errorf("failed to negotiate offer request: %w", err)
 		}
@@ -134,7 +134,7 @@ func (c *Cmd) receive(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to create transport: %w", err)
 		}
-		signaller, bat, err = signallers.NewServerClientSignaller(dsConfig.Host, corr.SessionID, corr.RTCSessionDescription, nil)
+		signaller, bat, err = signallers.NewServerClientSignaller(dsConfig.Addr, corr.SessionID, corr.RTCSessionDescription, nil)
 	}
 	if err != nil {
 		return fmt.Errorf("failed to create signaller: %w", err)

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -144,8 +145,11 @@ func (suite *TestSuite) SetupSuite() {
 	suite.Require().NoError(err)
 
 	newCmdPath := filepath.Join(suite.TestDir, "oneshot.testing")
-	cpOPut, err := exec.Command("cp", cmdPath, newCmdPath).CombinedOutput()
-	suite.Require().NoError(err, "failed to copy oneshot binary: %s", string(cpOPut))
+	if runtime.GOOS == "darwin" {
+		newCmdPath = filepath.Join(filepath.Dir(suite.TestDir), "oneshot.testing")
+	}
+	cpOut, err := exec.Command("cp", cmdPath, newCmdPath).CombinedOutput()
+	suite.Require().NoError(err, "failed to copy oneshot binary: %s", string(cpOut))
 
 	err = os.Chdir(suite.TestDir)
 	suite.Require().NoError(err)

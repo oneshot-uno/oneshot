@@ -117,7 +117,7 @@ func RestoreCursor(ctx context.Context) {
 func ReceivingToStdout(ctx context.Context) {
 	o := getOutput(ctx)
 
-	o.skipSummary = true
+	o.receivingToStdout = true
 	if o.Format == "json" {
 		if o.receivedBuf == nil {
 			o.receivedBuf = bytes.NewBuffer(nil)
@@ -139,7 +139,7 @@ func GetBufferedWriteCloser(ctx context.Context) io.WriteCloser {
 
 func DisplayProgress(ctx context.Context, prog *atomic.Int64, period time.Duration, host string, total int64) func() {
 	o := getOutput(ctx)
-	if o.quiet || o.Format == "json" {
+	if o.receivingToStdout || o.quiet || o.Format == "json" {
 		return func() {}
 	}
 

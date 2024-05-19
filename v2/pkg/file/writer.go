@@ -26,6 +26,7 @@ func NewWriteTransferConfig(ctx context.Context, location string) (*WriteTransfe
 	var wtc WriteTransferConfig
 	// if we are receiving to stdout
 	if location == "" {
+		output.ReceivingToStdout(ctx)
 		// and are outputting json
 		if format, _ := output.GetFormatAndOpts(ctx); format == "json" {
 			// send the contents into the ether.

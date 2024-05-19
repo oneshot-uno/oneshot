@@ -33,7 +33,10 @@ func (r *rootCommand) sendArrivalToDiscoveryServer(ctx context.Context, cmd stri
 	if err != nil {
 		return fmt.Errorf("unable to reach the discovery server: %w", err)
 	}
-	arrival.Redirect = ipThatCanReachDiscoveryServer
+	arrival.Redirect = ipThatCanReachDiscoveryServer.String()
+	if ipThatCanReachDiscoveryServer.To16() != nil {
+		arrival.Redirect = "[" + arrival.Redirect + "]"
+	}
 
 	scheme := "http"
 	if config.Server.TLSCert != "" {

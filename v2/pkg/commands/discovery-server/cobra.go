@@ -71,7 +71,7 @@ func (c *Cmd) run(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				return fmt.Errorf("unable to get source ip: %w", err)
 			}
-			uaConf.Domain = sip
+			uaConf.Domain = sip.String()
 		}
 	}
 	if uaConf.Port == 0 {

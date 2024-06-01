@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: make dep
         working-directory: ./v2
+      - name: Build
+        run: make build
+        working-directory: ./v2
       - name: Run integration tests
         run: make itest
         working-directory: ./v2

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"runtime"
@@ -33,7 +34,7 @@ func (suite *ts) Test_StdinTTY_StderrTTY() {
 	oneshot.Start()
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 	suite.Require().NoError(err)
 	suite.Require().NotNil(resp)
 	suite.Assert().Equal(http.StatusTemporaryRedirect, resp.StatusCode)
@@ -58,7 +59,7 @@ func (suite *ts) Test_JSON() {
 	// ---
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8080?q=1")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s?q=1", oneshot.Port))
 	suite.Require().NoError(err)
 	suite.Assert().Equal(http.StatusTemporaryRedirect, resp.StatusCode)
 
@@ -85,7 +86,7 @@ func (suite *ts) Test_JSON() {
 		"Accept-Encoding": {"gzip"},
 		"User-Agent":      {"Go-http-client/1.1"},
 	}, req.Header)
-	suite.Assert().Equal("127.0.0.1:8080", req.Host)
+	suite.Assert().Equal(fmt.Sprintf("127.0.0.1:%s", oneshot.Port), req.Host)
 	suite.Assert().Empty(req.Trailer)
 	suite.Assert().NotEmpty(req.RemoteAddr)
 	suite.Assert().Equal("/?q=1", req.RequestURI)
@@ -122,7 +123,7 @@ func (suite *ts) Test_MultipleClients() {
 			c.Wait()
 			c.L.Unlock()
 
-			resp, _ := http.Get("http://127.0.0.1:8080")
+			resp, _ := http.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 			if resp != nil {
 				if resp.Body != nil {
 					resp.Body.Close()

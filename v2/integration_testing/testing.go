@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+var MiscPortPool = &PortPool{start: 5000, end: 6000}
+
 type FilesMap map[string][]byte
 
 func (fm FilesMap) ProjectInto(dir string) error {
@@ -166,5 +168,6 @@ func (suite *TestSuite) NewOneshot() *Oneshot {
 	return &Oneshot{
 		T:          suite.T(),
 		WorkingDir: dir,
+		Port:       oneshotPortPool.Get(),
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -35,7 +36,7 @@ type ts struct {
 
 func (suite *ts) Test_FROM_StdinTTY_TO_ANY__StdoutTTY_StdoutErrTTY() {
 	var oneshot = suite.NewOneshot()
-	oneshot.Args = []string{"send", "-p", "8081"}
+	oneshot.Args = []string{"send"}
 	oneshot.Stdin = itest.EOFReader([]byte("SUCCESS"))
 	oneshot.Env = []string{
 		"ONESHOT_TESTING_TTY_STDIN=true",
@@ -48,7 +49,7 @@ func (suite *ts) Test_FROM_StdinTTY_TO_ANY__StdoutTTY_StdoutErrTTY() {
 	// ---
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8081")
+	resp, err := client.Get("http://127.0.0.1:" + oneshot.Port)
 	suite.Require().NoError(err)
 	suite.Assert().Equal(resp.StatusCode, http.StatusOK)
 
@@ -68,7 +69,7 @@ func (suite *ts) Test_FROM_StdinTTY_TO_ANY__StdoutTTY_StdoutErrTTY() {
 
 func (suite *ts) Test_FROM_StdinTTY_TO_ANY__StdoutNONTTY_StderrTTY() {
 	var oneshot = suite.NewOneshot()
-	oneshot.Args = []string{"send", "-p", "8081"}
+	oneshot.Args = []string{"send"}
 	oneshot.Stdin = itest.EOFReader([]byte("SUCCESS"))
 	oneshot.Env = []string{
 		"ONESHOT_TESTING_TTY_STDIN=true",
@@ -80,7 +81,7 @@ func (suite *ts) Test_FROM_StdinTTY_TO_ANY__StdoutNONTTY_StderrTTY() {
 	// ---
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8081")
+	resp, err := client.Get("http://127.0.0.1:" + oneshot.Port)
 	suite.Require().NoError(err)
 	suite.Assert().Equal(resp.StatusCode, http.StatusOK)
 
@@ -113,7 +114,7 @@ func (suite *ts) Test_FROM_File_TO_ANY__StdoutTTY_StderrTTY() {
 	// ---
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 	suite.Require().NoError(err)
 	suite.Assert().Equal(resp.StatusCode, http.StatusOK)
 
@@ -145,7 +146,7 @@ func (suite *ts) Test_FROM_File_TO_ANY__StdoutNONTTY_StderrTTY() {
 	// ---
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 	suite.Require().NoError(err)
 	suite.Assert().Equal(resp.StatusCode, http.StatusOK)
 
@@ -176,7 +177,7 @@ func (suite *ts) Test_FROM_File_TO_ANY__StdoutNONTTY_StderrNONTTY() {
 	// ---
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 	suite.Require().NoError(err)
 	suite.Assert().Equal(resp.StatusCode, http.StatusOK)
 
@@ -205,7 +206,7 @@ func (suite *ts) Test_FROM_File_TO_ANY__JSON() {
 	// ---
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8080/?q=1")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s/?q=1", oneshot.Port))
 	suite.Require().NoError(err)
 	suite.Assert().Equal(resp.StatusCode, http.StatusOK)
 
@@ -230,7 +231,7 @@ func (suite *ts) Test_FROM_File_TO_ANY__JSON() {
 		"Accept-Encoding": {"gzip"},
 		"User-Agent":      {"Go-http-client/1.1"},
 	}, req.Header)
-	suite.Require().Equal("127.0.0.1:8080", req.Host)
+	suite.Require().Equal(fmt.Sprintf("127.0.0.1:%s", oneshot.Port), req.Host)
 	suite.Require().Empty(req.Trailer)
 	suite.Require().NotEmpty(req.RemoteAddr)
 	suite.Require().Equal("/?q=1", req.RequestURI)
@@ -268,7 +269,7 @@ func (suite *ts) Test_StatusCode() {
 	// ---
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 	suite.Require().NoError(err)
 	suite.Assert().Equal(resp.StatusCode, http.StatusTeapot)
 }
@@ -293,7 +294,7 @@ func (suite *ts) Test_Send_Directory_targz() {
 	// ---
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 	suite.Require().NoError(err)
 	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
 
@@ -338,7 +339,7 @@ func (suite *ts) Test_Send_Oneshot_Directory_targz() {
 	// ---
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 	suite.Require().NoError(err)
 	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
 
@@ -375,7 +376,7 @@ func (suite *ts) Test_Send_Directory_zip() {
 	// ---
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 	suite.Require().NoError(err)
 	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
 
@@ -438,7 +439,7 @@ func (suite *ts) Test_MultipleClients() {
 			c.Wait()
 			c.L.Unlock()
 
-			resp, _ := http.Get("http://127.0.0.1:8080")
+			resp, _ := http.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 			if resp != nil {
 				if resp.Body != nil {
 					resp.Body.Close()

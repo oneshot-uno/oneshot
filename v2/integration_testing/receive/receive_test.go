@@ -39,7 +39,7 @@ func (suite *ts) Test_FROM_ANY_TO_StdoutTTY__StderrTTY() {
 	client := itest.RetryClient{
 		Suite: &suite.Suite,
 	}
-	resp, err := client.Post("http://127.0.0.1:8080", "text/plain", bytes.NewReader([]byte("SUCCESS")))
+	resp, err := client.Post(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port), "text/plain", bytes.NewReader([]byte("SUCCESS")))
 	suite.Require().NoError(err)
 	suite.Require().NotNil(resp)
 	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
@@ -65,7 +65,7 @@ func (suite *ts) Test_FROM_ANY_TO_StdoutTTY__StderrNONTTY() {
 	client := itest.RetryClient{
 		Suite: &suite.Suite,
 	}
-	resp, err := client.Post("http://127.0.0.1:8080", "text/plain", bytes.NewReader([]byte("SUCCESS")))
+	resp, err := client.Post(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port), "text/plain", bytes.NewReader([]byte("SUCCESS")))
 	suite.Require().NoError(err)
 	suite.Require().NotNil(resp)
 	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
@@ -92,7 +92,7 @@ func (suite *ts) Test_FROM_ANY_TO_File__StdoutTTY_StderrTTY() {
 	client := itest.RetryClient{
 		Suite: &suite.Suite,
 	}
-	resp, err := client.Post("http://127.0.0.1:8080", "text/plain", bytes.NewReader([]byte("SUCCESS")))
+	resp, err := client.Post(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port), "text/plain", bytes.NewReader([]byte("SUCCESS")))
 	suite.Require().NoError(err)
 	suite.Require().NotNil(resp)
 	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
@@ -125,7 +125,7 @@ func (suite *ts) Test_FROM_ANY_TO_StdoutTTY_DecodeBase64() {
 	)
 	base64.StdEncoding.Encode(encodedPayload, payload)
 	client := itest.RetryClient{}
-	resp, err := client.Post("http://127.0.0.1:8080", "text/plain", bytes.NewReader(encodedPayload))
+	resp, err := client.Post(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port), "text/plain", bytes.NewReader(encodedPayload))
 	suite.Require().NoError(err)
 	suite.Require().NotNil(resp)
 	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
@@ -148,7 +148,7 @@ func (suite *ts) Test_FROM_ANY_TO_File_DecodeBase64() {
 	)
 	base64.StdEncoding.Encode(encodedPayload, payload)
 	client := itest.RetryClient{}
-	resp, err := client.Post("http://127.0.0.1:8080", "text/plain", bytes.NewReader(encodedPayload))
+	resp, err := client.Post(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port), "text/plain", bytes.NewReader(encodedPayload))
 	suite.Require().NoError(err)
 	suite.Require().NotNil(resp)
 	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
@@ -171,7 +171,7 @@ func (suite *ts) Test_FROM_ANY_TO_FILE__JSON() {
 	client := itest.RetryClient{
 		Suite: &suite.Suite,
 	}
-	resp, err := client.Post("http://127.0.0.1:8080/?q=1", "text/plain", bytes.NewReader([]byte("SUCCESS")))
+	resp, err := client.Post(fmt.Sprintf("http://127.0.0.1:%s/?q=1", oneshot.Port), "text/plain", bytes.NewReader([]byte("SUCCESS")))
 	suite.Require().NoError(err)
 	suite.Require().NotNil(resp)
 	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
@@ -196,7 +196,7 @@ func (suite *ts) Test_FROM_ANY_TO_FILE__JSON() {
 		"Content-Type":    {"text/plain"},
 		"Content-Length":  {fmt.Sprintf("%d", len("SUCCESS"))},
 	}, req.Header)
-	suite.Require().Equal("127.0.0.1:8080", req.Host)
+	suite.Require().Equal(fmt.Sprintf("127.0.0.1:%s", oneshot.Port), req.Host)
 	suite.Require().Empty(req.Trailer)
 	suite.Require().NotEmpty(req.RemoteAddr)
 	suite.Require().Equal("/?q=1", req.RequestURI)
@@ -232,10 +232,10 @@ func (suite *ts) Test_FROM_ANY_TO_Stdout__JSON() {
 	client := itest.RetryClient{
 		Suite: &suite.Suite,
 	}
-	resp, err := client.Post("http://127.0.0.1:8080/?q=1", "text/plain", bytes.NewReader([]byte("SUCCESS")))
+	resp, err := client.Post(fmt.Sprintf("http://127.0.0.1:%s/?q=1", oneshot.Port), "text/plain", bytes.NewReader([]byte("SUCCESS")))
 	suite.Require().NoError(err)
 	suite.Require().NotNil(resp)
-	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
+	suite.Assert().Equal(resp.StatusCode, http.StatusOK)
 	resp.Body.Close()
 
 	oneshot.Wait()
@@ -257,7 +257,7 @@ func (suite *ts) Test_FROM_ANY_TO_Stdout__JSON() {
 		"Content-Type":    {"text/plain"},
 		"Content-Length":  {fmt.Sprintf("%d", len("SUCCESS"))},
 	}, req.Header)
-	suite.Require().Equal("127.0.0.1:8080", req.Host)
+	suite.Require().Equal(fmt.Sprintf("127.0.0.1:%s", oneshot.Port), req.Host)
 	suite.Require().Empty(req.Trailer)
 	suite.Require().NotEmpty(req.RemoteAddr)
 	suite.Require().Equal("/?q=1", req.RequestURI)
@@ -305,7 +305,7 @@ func (suite *ts) Test_MultipleClients() {
 			c.L.Unlock()
 
 			payload := []byte("SUCCESS")
-			resp, _ := http.Post("http://127.0.0.1:8080", "text/plain", bytes.NewReader(payload))
+			resp, _ := http.Post(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port), "text/plain", bytes.NewReader(payload))
 			if resp != nil {
 				if resp.Body != nil {
 					resp.Body.Close()

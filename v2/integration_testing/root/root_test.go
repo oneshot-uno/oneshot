@@ -60,11 +60,11 @@ func (suite *ts) Test_Basic_Auth() {
 	defer oneshot.Cleanup()
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	resp, err := client.Get("http://127.0.0.1:" + oneshot.Port)
 	suite.Require().NoError(err)
 	suite.Assert().Equal(resp.StatusCode, http.StatusUnauthorized)
 
-	req, err := http.NewRequest("GET", "http://127.0.0.1:8080", nil)
+	req, err := http.NewRequest("GET", "http://127.0.0.1:"+oneshot.Port, nil)
 	suite.Require().NoError(err)
 	req.SetBasicAuth("oneshot", "hunter2")
 	resp, err = client.Do(req)

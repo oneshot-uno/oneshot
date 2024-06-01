@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"runtime"
@@ -39,7 +40,8 @@ func (suite *ts) Test_StdinTTY_StderrTTY() {
 	// ---
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	addr := fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port)
+	resp, err := client.Get(addr)
 	suite.Require().NoError(err)
 	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
 
@@ -67,9 +69,10 @@ func (suite *ts) Test_JSON() {
 	// ---
 
 	client := itest.RetryClient{}
-	resp, err := client.Get("http://127.0.0.1:8080/?q=1")
+	addr := fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port)
+	resp, err := client.Get(addr + "/?q=1")
 	suite.Require().NoError(err)
-	suite.Assert().Equal(resp.StatusCode, http.StatusOK)
+	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
 
 	body, err := io.ReadAll(resp.Body)
 	suite.Assert().NoError(err)
@@ -94,7 +97,7 @@ func (suite *ts) Test_JSON() {
 		"Accept-Encoding": {"gzip"},
 		"User-Agent":      {"Go-http-client/1.1"},
 	}, req.Header)
-	suite.Assert().Equal("127.0.0.1:8080", req.Host)
+	suite.Assert().Equal("127.0.0.1:"+oneshot.Port, req.Host)
 	suite.Assert().Empty(req.Trailer)
 	suite.Assert().NotEmpty(req.RemoteAddr)
 	suite.Assert().Equal("/?q=1", req.RequestURI)
@@ -140,6 +143,8 @@ func (suite *ts) Test_MultipleClients() {
 
 	responses := make(chan int, runtime.NumCPU())
 	wg := sync.WaitGroup{}
+
+	addr := fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port)
 	for i := 1; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
 		go func(index int) {
@@ -147,7 +152,7 @@ func (suite *ts) Test_MultipleClients() {
 			c.Wait()
 			c.L.Unlock()
 
-			resp, _ := http.Get("http://127.0.0.1:8080")
+			resp, _ := http.Get(addr)
 			if resp != nil {
 				if resp.Body != nil {
 					resp.Body.Close()

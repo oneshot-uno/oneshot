@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"runtime"
@@ -30,7 +31,7 @@ func (suite *ts) Test_FROM_ANY_TO_StdoutTTY__StderrTTY() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	s := http.Server{
-		Addr: ":8081",
+		Addr: ":" + itest.MiscPortPool.Get(),
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("SUCCESS"))
@@ -42,7 +43,7 @@ func (suite *ts) Test_FROM_ANY_TO_StdoutTTY__StderrTTY() {
 	}()
 
 	var oneshot = suite.NewOneshot()
-	oneshot.Args = []string{"rproxy", "http://localhost:8081"}
+	oneshot.Args = []string{"rproxy", "http://localhost" + s.Addr}
 	oneshot.Env = []string{
 		"ONESHOT_TESTING_TTY_STDOUT=true",
 		"ONESHOT_TESTING_TTY_STDERR=true",
@@ -53,7 +54,7 @@ func (suite *ts) Test_FROM_ANY_TO_StdoutTTY__StderrTTY() {
 	client := itest.RetryClient{
 		Suite: &suite.Suite,
 	}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 	suite.Require().NoError(err)
 	body, err := io.ReadAll(resp.Body)
 	suite.Require().NoError(err)
@@ -76,7 +77,7 @@ func (suite *ts) Test_tee_FROM_ANY_TO_StdoutTTY__StderrTTY() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	s := http.Server{
-		Addr: ":8081",
+		Addr: ":" + itest.MiscPortPool.Get(),
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("SUCCESS"))
@@ -88,7 +89,7 @@ func (suite *ts) Test_tee_FROM_ANY_TO_StdoutTTY__StderrTTY() {
 	}()
 
 	var oneshot = suite.NewOneshot()
-	oneshot.Args = []string{"rproxy", "--tee", "http://localhost:8081"}
+	oneshot.Args = []string{"rproxy", "--tee", "http://localhost" + s.Addr}
 	oneshot.Env = []string{
 		"ONESHOT_TESTING_TTY_STDOUT=true",
 		"ONESHOT_TESTING_TTY_STDERR=true",
@@ -99,7 +100,7 @@ func (suite *ts) Test_tee_FROM_ANY_TO_StdoutTTY__StderrTTY() {
 	client := itest.RetryClient{
 		Suite: &suite.Suite,
 	}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 	suite.Require().NoError(err)
 	body, err := io.ReadAll(resp.Body)
 	suite.Require().NoError(err)
@@ -126,7 +127,7 @@ func (suite *ts) Test_flags_FROM_ANY_TO_Stdout() {
 		receivedRequestHeaders http.Header
 	)
 	s := http.Server{
-		Addr: ":8081",
+		Addr: ":" + itest.MiscPortPool.Get(),
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			method = r.Method
 			receivedRequestHeaders = r.Header.Clone()
@@ -148,7 +149,7 @@ func (suite *ts) Test_flags_FROM_ANY_TO_Stdout() {
 		"--response-header", "X-Test=321",
 		"--method", "POST",
 		"--match-host",
-		"http://127.0.0.1:8081",
+		"http://127.0.0.1" + s.Addr,
 	}
 	oneshot.Start()
 	defer oneshot.Cleanup()
@@ -158,7 +159,7 @@ func (suite *ts) Test_flags_FROM_ANY_TO_Stdout() {
 	client := itest.RetryClient{
 		Suite: &suite.Suite,
 	}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 	suite.Require().NoError(err)
 	suite.Require().NotNil(resp)
 	suite.Assert().Equal(http.StatusTeapot, resp.StatusCode)
@@ -181,7 +182,7 @@ func (suite *ts) Test_flags_FROM_ANY_TO_Stdout() {
 
 	req := report.Success.Request
 	suite.Assert().Equal("GET", req.Method)
-	suite.Assert().Equal("127.0.0.1:8080", req.Host)
+	suite.Assert().Equal(fmt.Sprintf("127.0.0.1:%s", oneshot.Port), req.Host)
 	suite.Assert().Equal("123", receivedRequestHeaders.Get("X-Test"))
 	suite.Assert().Equal("321", resp.Header.Get("X-Test"))
 }
@@ -190,7 +191,7 @@ func (suite *ts) Test_FROM_ANY_TO_Stdout__JSON() {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	s := http.Server{
-		Addr: ":8081",
+		Addr: ":" + itest.MiscPortPool.Get(),
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("SUCCESS"))
@@ -202,7 +203,7 @@ func (suite *ts) Test_FROM_ANY_TO_Stdout__JSON() {
 	}()
 
 	var oneshot = suite.NewOneshot()
-	oneshot.Args = []string{"--output", "json", "rproxy", "http://localhost:8081"}
+	oneshot.Args = []string{"--output", "json", "rproxy", "http://localhost" + s.Addr}
 	oneshot.Start()
 	defer oneshot.Cleanup()
 
@@ -211,7 +212,7 @@ func (suite *ts) Test_FROM_ANY_TO_Stdout__JSON() {
 	client := itest.RetryClient{
 		Suite: &suite.Suite,
 	}
-	resp, err := client.Get("http://127.0.0.1:8080")
+	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port))
 	suite.Require().NoError(err)
 	suite.Require().NotNil(resp)
 	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
@@ -233,7 +234,7 @@ func (suite *ts) Test_FROM_ANY_TO_Stdout__JSON() {
 	req := report.Success.Request
 	suite.Assert().Equal("GET", req.Method)
 	suite.Assert().Equal("HTTP/1.1", req.Protocol)
-	suite.Assert().Equal("127.0.0.1:8080", req.Host)
+	suite.Assert().Equal(fmt.Sprintf("127.0.0.1:%s", oneshot.Port), req.Host)
 
 	response := report.Success.Response
 	suite.Assert().Equal(http.StatusOK, response.StatusCode)
@@ -253,7 +254,7 @@ func (suite *ts) Test_MultipleClients() {
 	swg.Add(2)
 	requests := 0
 	s := http.Server{
-		Addr: ":8081",
+		Addr: ":" + itest.MiscPortPool.Get(),
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requests++
 			w.WriteHeader(http.StatusOK)
@@ -267,7 +268,7 @@ func (suite *ts) Test_MultipleClients() {
 	}()
 
 	var oneshot = suite.NewOneshot()
-	oneshot.Args = []string{"rproxy", "--tee", "http://localhost:8081"}
+	oneshot.Args = []string{"rproxy", "--tee", "http://localhost" + s.Addr}
 	oneshot.Start()
 	defer oneshot.Cleanup()
 
@@ -284,7 +285,7 @@ func (suite *ts) Test_MultipleClients() {
 			c.L.Unlock()
 
 			payload := []byte("SUCCESS")
-			resp, _ := http.Post("http://127.0.0.1:8080", "text/plain", bytes.NewReader(payload))
+			resp, _ := http.Post(fmt.Sprintf("http://127.0.0.1:%s", oneshot.Port), "text/plain", bytes.NewReader(payload))
 			if resp != nil {
 				if resp.Body != nil {
 					resp.Body.Close()

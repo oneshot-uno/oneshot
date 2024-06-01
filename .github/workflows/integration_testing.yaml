@@ -27,7 +27,7 @@ jobs:
         run: make dep
         working-directory: ./v2
       - name: Build
-        run: make build
+        run: make
         working-directory: ./v2
       - name: Run integration tests
         run: make itest

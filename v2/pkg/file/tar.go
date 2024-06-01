@@ -22,9 +22,16 @@ func tarball(compress bool, paths []string, w io.Writer) error {
 	defer tw.Close()
 
 	formatName := func(name string) string {
+		if name == "" {
+			return ""
+		}
+
 		// needed for windows
 		name = strings.ReplaceAll(name, `\`, `/`)
 		if string(name[0]) == `/` {
+			if len(name) == 1 {
+				return ""
+			}
 			name = name[1:]
 		}
 		return name
@@ -53,7 +60,6 @@ func tarball(compress bool, paths []string, w io.Writer) error {
 
 			header.Name = strings.TrimPrefix(fp, dir)
 			header.Name = formatName(header.Name)
-
 			if header.Name == "" {
 				return nil
 			}

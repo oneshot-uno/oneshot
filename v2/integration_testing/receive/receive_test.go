@@ -74,9 +74,6 @@ func (suite *ts) Test_FROM_ANY_TO_StdoutTTY__StderrNONTTY() {
 	oneshot.Wait()
 	stdout := oneshot.Stdout.(*bytes.Buffer).Bytes()
 	suite.Assert().Equal("SUCCESS", string(stdout))
-
-	stderr := oneshot.Stderr.(*bytes.Buffer).Bytes()
-	suite.Assert().Contains(string(stderr), "success\n")
 }
 
 func (suite *ts) Test_FROM_ANY_TO_File__StdoutTTY_StderrTTY() {

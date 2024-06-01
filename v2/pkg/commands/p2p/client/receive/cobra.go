@@ -176,7 +176,7 @@ func (c *Cmd) receive(cmd *cobra.Command, args []string) error {
 		req.RemoteAddr = host
 	}
 
-	events.Raise(ctx, output.NewHTTPRequest(req))
+	events.Raise(ctx, output.NewHTTPRequest(req, nil))
 
 	httpClient := http.Client{
 		Transport: transport,

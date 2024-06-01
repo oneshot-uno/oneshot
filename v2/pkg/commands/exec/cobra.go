@@ -106,7 +106,7 @@ func (c *Cmd) setHandlerFunc(cmd *cobra.Command, args []string) error {
 
 func (c *Cmd) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := c.cobraCommand.Context()
-	events.Raise(ctx, output.NewHTTPRequest(r))
+	events.Raise(ctx, output.NewHTTPRequest(r, nil))
 
 	bw, getBufBytes := output.NewBufferedWriter(ctx, w)
 	brw := output.ResponseWriter{

@@ -113,7 +113,7 @@ func (c *Cmd) setHandlerFunc(cmd *cobra.Command, args []string) error {
 
 	handler := func(w http.ResponseWriter, r *http.Request) {
 		ctx := c.cobraCommand.Context()
-		events.Raise(ctx, output.NewHTTPRequest(r))
+		events.Raise(ctx, output.NewHTTPRequest(r, nil))
 
 		if 0 < len(config.RequestHeader) {
 			for k, v := range config.RequestHeader.Inflate() {

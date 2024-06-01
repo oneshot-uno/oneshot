@@ -259,7 +259,7 @@ func (c *Cmd) send(cmd *cobra.Command, args []string) error {
 		Transport: transport,
 	}
 
-	events.Raise(ctx, output.NewHTTPRequest(req))
+	events.Raise(ctx, output.NewHTTPRequest(req, nil))
 	cancelProgDisp := output.DisplayProgress(
 		cmd.Context(),
 		&rts.Progress,

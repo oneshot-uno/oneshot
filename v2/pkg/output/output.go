@@ -63,7 +63,6 @@ func (o *output) run(ctx context.Context) error {
 
 	log.Debug().
 		Msg("output running in json mode")
-	NewHTTPRequest = events.NewHTTPRequest_WithBody
 	runJSON(ctx, o)
 
 	log.Debug().

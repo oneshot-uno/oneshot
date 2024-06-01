@@ -28,12 +28,19 @@ func (c *Cmd) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var (
-		config = c.config.Subcommands.Receive
-		rb     *requestBody
-		err    error
+		config           = c.config.Subcommands.Receive
+		rb               *requestBody
+		readerMiddleware func(io.Reader) io.Reader
+		err              error
 	)
 
-	events.Raise(ctx, output.NewHTTPRequest(r))
+	if config.DecodeBase64 {
+		readerMiddleware = func(r io.Reader) io.Reader {
+			return base64.NewDecoder(base64.StdEncoding, r)
+		}
+	}
+
+	events.Raise(ctx, output.NewHTTPRequest(r, readerMiddleware))
 
 	rct := r.Header.Get("Content-Type")
 	log.Debug().

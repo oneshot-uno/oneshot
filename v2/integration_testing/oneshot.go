@@ -91,7 +91,7 @@ func (o *Oneshot) Start() {
 
 	if o.Cmd == nil {
 		o.Cmd = exec.Command(
-			filepath.Join(o.WorkingDir, "../../oneshot.testing"),
+			filepath.Join(o.WorkingDir, "../oneshot.testing"),
 			o.Args...,
 		)
 		o.Cmd.Stdin = o.Stdin
@@ -126,7 +126,7 @@ func (o *Oneshot) Start() {
 			}
 		}
 
-		o.T.Fatalf(msg, err, o.Cmd.Path, o.Args, o.Env, o.WorkingDir, entries, up1Entries)
+		o.T.Fatalf(msg, err.Error(), o.Cmd.Path, o.Args, o.Env, o.WorkingDir, entries, up1Entries)
 	}
 
 	time.Sleep(time.Second)

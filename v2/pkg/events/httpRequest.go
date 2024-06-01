@@ -45,8 +45,10 @@ func (hr *HTTPRequest) ReadBody() error {
 	return nil
 }
 
-func NewHTTPRequest(r *http.Request) *HTTPRequest {
-	return &HTTPRequest{
+// newHTTPRequest_WithBody replaces the requests body with a tee reader that copies the data into a byte buffer.
+// This allows for the body to be written out later in a report should we need to.
+func NewHTTPRequest(r *http.Request, wrapper func(io.Reader) io.Reader) *HTTPRequest {
+	ht := HTTPRequest{
 		Method:     r.Method,
 		RequestURI: r.RequestURI,
 		Path:       r.URL.Path,
@@ -57,22 +59,22 @@ func NewHTTPRequest(r *http.Request) *HTTPRequest {
 		Trailer:    r.Trailer.Clone(),
 		RemoteAddr: r.RemoteAddr,
 	}
-}
 
-// newHTTPRequest_WithBody replaces the requests body with a tee reader that copies the data into a byte buffer.
-// This allows for the body to be written out later in a report should we need to.
-func NewHTTPRequest_WithBody(r *http.Request) *HTTPRequest {
-	ht := NewHTTPRequest(r)
 	if r.Body == nil {
-		return ht
+		return &ht
 	}
 
 	buf := bytes.NewBuffer(nil)
 	r.Body = io.NopCloser(io.TeeReader(r.Body, buf))
 	ht.body = func() ([]byte, error) {
-		return io.ReadAll(buf)
+		if wrapper != nil {
+			return io.ReadAll(wrapper(buf))
+		} else {
+			return buf.Bytes(), nil
+		}
 	}
-	return ht
+
+	return &ht
 }
 
 func (*HTTPRequest) isEvent() {}

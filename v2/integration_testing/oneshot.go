@@ -102,7 +102,31 @@ func (o *Oneshot) Start() {
 	}
 
 	if err := o.Cmd.Start(); err != nil {
-		o.T.Fatalf("unable to start oneshot exec: %v\n", err)
+		msg := "error starting oneshot exec: %s\n"
+		msg += "cmd: %s\n"
+		msg += "args: %v\n"
+		msg += "env: %v\n"
+		msg += "working dir: %s\n"
+
+		cmdDir := filepath.Dir(o.Cmd.Path)
+		entries, err := os.ReadDir(cmdDir)
+		if err != nil {
+			msg += "error reading directory: %s\n"
+		} else {
+			msg += "cmd directory sibling entries: %+v\n"
+		}
+		up1CmdDir := filepath.Dir(cmdDir)
+		up1Entries := []os.DirEntry{}
+		if up1CmdDir != "" {
+			up1Entries, err = os.ReadDir(up1CmdDir)
+			if err != nil {
+				msg += "error reading directory: %s\n"
+			} else {
+				msg += "cmd directory parent sibling entries: %+v\n"
+			}
+		}
+
+		o.T.Fatalf(msg, err, o.Cmd.Path, o.Args, o.Env, o.WorkingDir, entries, up1Entries)
 	}
 
 	time.Sleep(time.Second)

@@ -7,6 +7,7 @@ import (
 
 	"github.com/forestnode-io/oneshot/v2/pkg/configuration"
 	oneshothttp "github.com/forestnode-io/oneshot/v2/pkg/net/http"
+	"github.com/forestnode-io/oneshot/v2/pkg/ssl"
 	"github.com/rs/cors"
 )
 
@@ -62,18 +63,27 @@ func (r *rootCommand) configureServer() (string, error) {
 		return "", fmt.Errorf("failed to parse max read size: %w", err)
 	}
 
-	r.server = oneshothttp.NewServer(r.Context(), r.handler, goneHandler, []oneshothttp.Middleware{
-		r.middleware.
-			Chain(oneshothttp.BlockPrefetch("Safari")).
-			Chain(oneshothttp.LimitReaderMiddleware(maxReadSize)).
-			Chain(oneshothttp.MiddlewareShim(corsMW)).
-			Chain(oneshothttp.BotsMiddleware(allowBots)).
-			Chain(baMiddleware),
-	}...)
-	r.server.TLSCert = sConf.TLSCert
-	r.server.TLSKey = sConf.TLSKey
-	r.server.Timeout = timeout
-	r.server.ExitOnFail = exitOnFail
+	serverConfig := oneshothttp.ServerConfig{
+		Timeout:            timeout,
+		ExitOnFail:         exitOnFail,
+		PreSuccessHandler:  r.handler,
+		PostSuccessHandler: goneHandler,
+		Middleware: []oneshothttp.Middleware{
+			r.middleware.
+				Chain(oneshothttp.BlockPrefetch("Safari")).
+				Chain(oneshothttp.LimitReaderMiddleware(maxReadSize)).
+				Chain(oneshothttp.MiddlewareShim(corsMW)).
+				Chain(oneshothttp.BotsMiddleware(allowBots)).
+				Chain(baMiddleware),
+		},
+	}
+	tc, err := ssl.GetTLSConfig(sConf.TLS)
+	if err != nil {
+		return "", fmt.Errorf("failed to get cert and key: %w", err)
+	}
+	serverConfig.TLSConfig = tc
+
+	r.server = oneshothttp.NewServer(r.Context(), serverConfig)
 
 	return baToken, nil
 }

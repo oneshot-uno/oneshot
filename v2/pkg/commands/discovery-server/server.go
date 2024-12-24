@@ -21,6 +21,7 @@ import (
 	"github.com/forestnode-io/oneshot/v2/pkg/net/webrtc/signallingserver/proto"
 	"github.com/forestnode-io/oneshot/v2/pkg/output"
 	oneshotfmt "github.com/forestnode-io/oneshot/v2/pkg/output/fmt"
+	"github.com/forestnode-io/oneshot/v2/pkg/ssl"
 	"github.com/pion/webrtc/v3"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
@@ -86,7 +87,7 @@ func newServer(c *configuration.Root) (*server, error) {
 		scheme:    config.URLAssignment.Scheme,
 	}
 	if s.scheme == "" {
-		if c.Server.TLSCert != "" && c.Server.TLSKey != "" {
+		if c.Server.IsUsingTLS() {
 			s.scheme = "https"
 		} else {
 			s.scheme = "http"
@@ -177,34 +178,37 @@ func (s *server) run(ctx context.Context) error {
 		log.Info().Msg("discovery service shutdown")
 	}()
 
+	if hc.IsUsingTLS() {
+		tc, err := ssl.GetTLSConfig(hc.TLS)
+		if err != nil {
+			return fmt.Errorf("failed to get tls config: %w", err)
+		}
+		hs.TLSConfig = tc
+	}
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if hc.TLSCert != "" && hc.TLSKey != "" {
-			if err := hs.ListenAndServeTLS(hc.TLSCert, hc.TLSKey); err != nil {
-				cancel()
-				if err != http.ErrServerClosed {
-					log.Error().Err(err).
-						Msg("error serving http")
-				}
-			}
-			return
-		} else {
-			if err := hs.ListenAndServe(); err != nil {
-				cancel()
-				if err != http.ErrServerClosed {
-					log.Error().Err(err).
-						Msg("error serving http")
-				}
+		// TODO: figure how to use tls with in memory certs
+		if err := hs.ListenAndServe(); err != nil {
+			cancel()
+			if err != http.ErrServerClosed {
+				log.Error().Err(err).
+					Msg("error serving http")
 			}
 		}
 	}()
 
 	go s.worker()
 
+	msg := "listening for http"
+	if hc.IsUsingTLS() {
+		msg += "s"
+	}
+	msg += " traffic"
 	log.Info().
 		Str("addr", hs.Addr).
-		Msg("listening for http traffic")
+		Msg(msg)
 	server := grpc.NewServer(
 		grpc.KeepaliveEnforcementPolicy(kaep),
 		grpc.KeepaliveParams(kasp),

@@ -16,8 +16,14 @@ type Server struct {
 	AllowBots   bool          `mapstructure:"allowBots" yaml:"allowBots"`
 	MaxReadSize string        `mapstructure:"maxReadSize" yaml:"maxReadSize"`
 	ExitOnFail  bool          `mapstructure:"exitOnFail" yaml:"exitOnFail"`
-	TLSCert     string        `mapstructure:"tlsCert" yaml:"tlsCert"`
-	TLSKey      string        `mapstructure:"tlsKey" yaml:"tlsKey"`
+	TLS         *TLS          `mapstructure:"tls" yaml:"tls"`
+}
+
+func (c *Server) IsUsingTLS() bool {
+	if c.TLS == nil {
+		return false
+	}
+	return c.TLS.IsEnabled()
 }
 
 func setServerFlags(cmd *cobra.Command) {
@@ -49,13 +55,6 @@ A value of 0 will cause oneshot to wait indefinitely.`)
 func (c *Server) validate() error {
 	if c.Port < 1 || c.Port > 65535 {
 		return fmt.Errorf("invalid port: %d", c.Port)
-	}
-
-	if c.TLSCert != "" && c.TLSKey == "" {
-		return fmt.Errorf("tls-key is required when tls-cert is set")
-	}
-	if c.TLSKey != "" && c.TLSCert == "" {
-		return fmt.Errorf("tls-cert is required when tls-key is set")
 	}
 
 	return nil

@@ -39,7 +39,7 @@ func (r *rootCommand) sendArrivalToDiscoveryServer(ctx context.Context, cmd stri
 	}
 
 	scheme := "http"
-	if config.Server.TLSCert != "" {
+	if config.Server.IsUsingTLS() {
 		scheme = "https"
 	}
 	arrival.Redirect = fmt.Sprintf("%s://%s:%d", scheme, arrival.Redirect, config.Server.Port)

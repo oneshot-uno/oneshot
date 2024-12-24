@@ -58,7 +58,7 @@ func (c *Cmd) run(cmd *cobra.Command, args []string) error {
 	)
 
 	if uaConf.Scheme == "" {
-		if sConf.TLSCert != "" && sConf.TLSKey != "" {
+		if sConf.IsUsingTLS() {
 			uaConf.Scheme = "https"
 		} else {
 			uaConf.Scheme = "http"

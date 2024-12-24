@@ -2,17 +2,21 @@ package http
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
+	"io"
+	"log"
 	"net"
 	"net/http"
 	"runtime"
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/forestnode-io/oneshot/v2/pkg/events"
 	oneshotnet "github.com/forestnode-io/oneshot/v2/pkg/net"
 	"github.com/forestnode-io/oneshot/v2/pkg/output"
+	"github.com/forestnode-io/oneshot/v2/pkg/ssl"
+	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
 )
 
@@ -38,14 +42,29 @@ type Server struct {
 	queue chan _wr
 }
 
-func NewServer(ctx context.Context, preSucc, postSucc http.HandlerFunc, mw ...Middleware) *Server {
+type ServerConfig struct {
+	PreSuccessHandler  http.HandlerFunc
+	PostSuccessHandler http.HandlerFunc
+	Middleware         []Middleware
+	TLSConfig          *tls.Config
+	Timeout            time.Duration
+	ExitOnFail         bool
+}
+
+func NewServer(ctx context.Context, config ServerConfig) *Server {
 	s := Server{
-		PreSuccessHandler:  preSucc,
-		PostSuccessHandler: postSucc,
+		Timeout:            config.Timeout,
+		ExitOnFail:         config.ExitOnFail,
+		PreSuccessHandler:  config.PreSuccessHandler,
+		PostSuccessHandler: config.PostSuccessHandler,
 
 		queue: make(chan _wr, runtime.NumCPU()),
 
-		server: http.Server{},
+		server: http.Server{
+			TLSConfig: config.TLSConfig,
+			// TODO(raphaelreyna): add logging
+			ErrorLog: log.New(io.Discard, "", 0),
+		},
 	}
 	s.server.BaseContext = func(l net.Listener) context.Context {
 		return ctx
@@ -69,7 +88,7 @@ func NewServer(ctx context.Context, preSucc, postSucc http.HandlerFunc, mw ...Mi
 	}
 
 	// apply middleware
-	for _, mw := range mw {
+	for _, mw := range config.Middleware {
 		handler = mw(handler)
 	}
 
@@ -87,6 +106,7 @@ func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 		log             = zerolog.Ctx(ctx)
 		wg              = sync.WaitGroup{}
 		shutdownErrChan = make(chan error)
+		usingTLS        = s.server.TLSConfig != nil
 		shuttingDown    bool
 		shuttingDownMu  sync.Mutex
 	)
@@ -181,16 +201,23 @@ func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 
 	var err error
 	if l != nil {
-		if s.TLSCert != "" && s.TLSKey != "" {
+		if usingTLS {
 			log.Info().
 				Str("cert", s.TLSCert).
 				Str("key", s.TLSKey).
 				Msg("serving HTTPS")
-			err = s.server.ServeTLS(l, s.TLSCert, s.TLSKey)
-			err = output.WrapPrintable(err)
+
+			tlsListener, err := ssl.UpgradeListener(l, s.server.TLSConfig)
+			if err == nil {
+				err = s.server.Serve(tlsListener)
+				err = output.WrapPrintable(err)
+			} else {
+				err = output.WrapPrintable(err)
+			}
 		} else {
 			log.Info().
 				Msg("serving HTTP")
+
 			err = s.server.Serve(l)
 			err = output.WrapPrintable(err)
 		}

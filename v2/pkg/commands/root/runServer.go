@@ -246,10 +246,14 @@ func (r *rootCommand) runServer(cmd *cobra.Command, args []string) error {
 		// try giving the ip address that can reach the
 		// default gateway in the print out
 		sourceIP, err := oneshotnet.GetSourceIP("", 80)
+		scheme := "http"
+		if r.config.Server.IsUsingTLS() {
+			scheme = "https"
+		}
 		if err == nil {
-			userFacingAddr = fmt.Sprintf("%s://%s:%d", "http", sourceIP, port)
+			userFacingAddr = fmt.Sprintf("%s://%s:%d", scheme, sourceIP, port)
 		} else {
-			userFacingAddr = fmt.Sprintf("%s://%s:%d", "http", "localhost", port)
+			userFacingAddr = fmt.Sprintf("%s://%s:%d", scheme, "localhost", port)
 		}
 	}
 

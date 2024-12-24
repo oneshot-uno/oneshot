@@ -91,7 +91,7 @@ func (r *rootCommand) handlePortMap(ctx context.Context) (string, func(), error)
 	})
 
 	scheme := "http"
-	if r.config.Server.TLSCert != "" {
+	if r.config.Server.IsUsingTLS() {
 		scheme = "https"
 	}
 	externalAddr = fmt.Sprintf("%s://%s", scheme, externalAddr)

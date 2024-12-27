@@ -16,7 +16,7 @@ type BasicAuth struct {
 	PasswordFile       string `mapstructure:"passwordFile" yaml:"passwordFile"`
 	PasswordPrompt     bool   `mapstructure:"passwordPrompt" yaml:"passwordPrompt"`
 	UnauthorizedPage   string `mapstructure:"unauthorizedPage" yaml:"unauthorizedPage"`
-	UnauthorizedStatus int    `mapstructure:"unauthorizedStatus" yaml:"unauthorizedStatus"`
+	UnauthorizedStatus int    `mapstructure:"unauthorizedStatus" yaml:"unauthorizedStatus,omitempty"`
 	NoDialog           bool   `mapstructure:"noDialog" yaml:"noDialog"`
 }
 

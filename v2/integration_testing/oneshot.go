@@ -10,6 +10,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/forestnode-io/oneshot/v2/pkg/configuration"
+	"gopkg.in/yaml.v3"
 )
 
 type PortPool struct {
@@ -44,15 +47,17 @@ var oneshotPortPool = &PortPool{
 }
 
 type Oneshot struct {
-	T          *testing.T
-	Env        []string
-	Args       []string
-	Files      FilesMap
-	Stdin      io.Reader
-	Stdout     io.Writer
-	Stderr     io.Writer
-	WorkingDir string
-	Port       string
+	T             *testing.T
+	Env           []string
+	Args          []string
+	Files         FilesMap
+	Stdin         io.Reader
+	Stdout        io.Writer
+	Stderr        io.Writer
+	WorkingDir    string
+	TempDir       string
+	Port          string
+	Configuration *configuration.Root
 
 	Cmd       *exec.Cmd
 	stdoutBuf *bytes.Buffer
@@ -87,6 +92,26 @@ func (o *Oneshot) Start() {
 	}
 	if !setPort {
 		o.Args = append(o.Args, "--port", o.Port)
+	}
+
+	if o.Configuration != nil {
+		var err error
+		o.Configuration.Server.Port, err = strconv.Atoi(o.Port)
+		if err != nil {
+			o.T.Fatalf("error converting port to int: %s", err)
+			return
+		}
+		configBytes, err := yaml.Marshal(o.Configuration)
+		if err != nil {
+			o.T.Fatalf("error marshalling configuration: %s", err)
+			return
+		}
+		configFileName := filepath.Join(o.TempDir, "config.yaml")
+		if err := os.WriteFile(configFileName, configBytes, 0600); err != nil {
+			o.T.Fatalf("error writing configuration file: %s", err)
+			return
+		}
+		o.Env = append(o.Env, "ONESHOT_CONFIG="+configFileName)
 	}
 
 	if o.Cmd == nil {

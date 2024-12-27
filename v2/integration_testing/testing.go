@@ -1,6 +1,9 @@
 package itest
 
 import (
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/forestnode-io/oneshot/v2/pkg/configuration"
+	"github.com/forestnode-io/oneshot/v2/pkg/ssl"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -60,15 +65,18 @@ func (sp *stdinPayload) Read(p []byte) (int, error) {
 }
 
 type RetryClient struct {
-	client http.RoundTripper
-	Suite  *suite.Suite
+	client    http.RoundTripper
+	Suite     *suite.Suite
+	TLSConfig *tls.Config
 }
 
 func (rc *RetryClient) Post(url, mime string, body io.Reader) (*http.Response, error) {
 	var response *http.Response
 
 	if rc.client == nil {
-		rc.client = &http.Transport{}
+		rc.client = &http.Transport{
+			TLSClientConfig: rc.TLSConfig,
+		}
 	}
 
 	for response == nil {
@@ -163,11 +171,54 @@ func (suite *TestSuite) TearDownSuite() {
 }
 
 func (suite *TestSuite) NewOneshot() *Oneshot {
-	dir, err := os.MkdirTemp(suite.TestDir, "subtest*")
+	wdir, err := os.MkdirTemp(suite.TestDir, "subtest-working-dir*")
+	suite.Require().NoError(err)
+	tdir, err := os.MkdirTemp(suite.TestDir, "subtest-temp-dir*")
 	suite.Require().NoError(err)
 	return &Oneshot{
 		T:          suite.T(),
-		WorkingDir: dir,
+		WorkingDir: wdir,
+		TempDir:    tdir,
 		Port:       oneshotPortPool.Get(),
 	}
+}
+
+func (suite *TestSuite) WaitForFileToExist(path string, timeout time.Duration) {
+	start := time.Now()
+	for time.Since(start) < timeout {
+		if _, err := os.Stat(path); err == nil {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	suite.Failf("file was not created", "file %s was not created within %s", path, timeout)
+}
+
+func (suite *TestSuite) GenerateSelfSignedCertAndKey(config *configuration.GeneratedCertificate) (*x509.Certificate, any) {
+	conf := config
+	if conf == nil {
+		conf = &configuration.GeneratedCertificate{
+			Subject: &configuration.PKIXName{
+				CommonName: "localhost",
+			},
+		}
+	}
+
+	privKey, pubKey, err := ssl.GeneratePrivateKey(conf.GetPrivateKeyAlgorithm())
+	suite.Require().NoError(err)
+
+	certTemplate, err := ssl.CertFromConfig(conf, true)
+	suite.Require().NoError(err)
+	certTemplate.IsCA = true
+	certTemplate.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
+	certTemplate.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}
+
+	certBytes, err := x509.CreateCertificate(rand.Reader, certTemplate, certTemplate, pubKey, privKey)
+	suite.Require().NoError(err)
+
+	cert, err := x509.ParseCertificate(certBytes)
+	suite.Require().NoError(err)
+
+	return cert, privKey
 }

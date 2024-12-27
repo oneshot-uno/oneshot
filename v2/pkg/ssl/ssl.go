@@ -44,10 +44,10 @@ func GetTLSConfig(config *configuration.TLS) (*tls.Config, error) {
 				if certPool == nil {
 					certPool = x509.NewCertPool()
 				}
-				for _, certPath := range config.MTLS.CertPool.Certs {
-					certBytes, err := os.ReadFile(certPath)
+				for _, certPathOrContent := range config.MTLS.CertPool.Certs {
+					certBytes, err := certPathOrContent.GetContent()
 					if err != nil {
-						return nil, fmt.Errorf("failed to read cert file: %w", err)
+						return nil, fmt.Errorf("failed to get cert: %w", err)
 					}
 					ok := certPool.AppendCertsFromPEM(certBytes)
 					if !ok {
@@ -135,16 +135,13 @@ func GetTLSConfig(config *configuration.TLS) (*tls.Config, error) {
 }
 
 func generateRootCertAndKey(config *configuration.GeneratedCertificate) (*x509.Certificate, any, error) {
-	pkeyAlgorithm := config.PrivateKeyAlgorithm
-	if pkeyAlgorithm == "" {
-		pkeyAlgorithm = "ecdsa-p256"
-	}
+	pkeyAlgorithm := config.GetPrivateKeyAlgorithm()
 
-	rootPrivKey, rootPubKey, err := generatePrivateKey(pkeyAlgorithm)
+	rootPrivKey, rootPubKey, err := GeneratePrivateKey(pkeyAlgorithm)
 	if err != nil {
 		return nil, nil, err
 	}
-	rootCertTemplate, err := certFromConfig(config, false)
+	rootCertTemplate, err := CertFromConfig(config, false)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -179,16 +176,13 @@ func generateRootCertAndKey(config *configuration.GeneratedCertificate) (*x509.C
 }
 
 func generateLeafCertAndKey(config *configuration.GeneratedCertificate, rootCert *x509.Certificate, rootPrivKey any, hello *tls.ClientHelloInfo) ([]byte, []byte, error) {
-	pkeyAlgorithm := config.PrivateKeyAlgorithm
-	if pkeyAlgorithm == "" {
-		pkeyAlgorithm = "ecdsa-p256"
-	}
+	pkeyAlgorithm := config.GetPrivateKeyAlgorithm()
 
-	leafPrivKey, leafPubKey, err := generatePrivateKey(pkeyAlgorithm)
+	leafPrivKey, leafPubKey, err := GeneratePrivateKey(pkeyAlgorithm)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
-	leafCertTemplate, err := certFromConfig(config, true)
+	leafCertTemplate, err := CertFromConfig(config, true)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create certificate template: %w", err)
 	}
@@ -228,7 +222,7 @@ func generateLeafCertAndKey(config *configuration.GeneratedCertificate, rootCert
 	return leafCertPEM, leafKeyPEM, nil
 }
 
-func generatePrivateKey(algorithm string) (any, any, error) {
+func GeneratePrivateKey(algorithm string) (any, any, error) {
 	switch algorithm {
 	case "rsa-2048":
 		privKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -280,9 +274,9 @@ func parseTime(s string) (time.Time, error) {
 	return time.Parse(time.RFC3339, s)
 }
 
-func certFromConfig(config *configuration.GeneratedCertificate, isLeaf bool) (*x509.Certificate, error) {
+func CertFromConfig(config *configuration.GeneratedCertificate, isLeaf bool) (*x509.Certificate, error) {
 	var (
-		pkeyAlgorithm = config.PrivateKeyAlgorithm
+		pkeyAlgorithm = config.GetPrivateKeyAlgorithm()
 		cert          = x509.Certificate{
 			NotBefore:             time.Now(),
 			NotAfter:              time.Now().AddDate(1, 0, 0),
@@ -290,10 +284,6 @@ func certFromConfig(config *configuration.GeneratedCertificate, isLeaf bool) (*x
 		}
 		err error
 	)
-
-	if pkeyAlgorithm == "" {
-		pkeyAlgorithm = "ecdsa-p256"
-	}
 
 	cert.SerialNumber, err = rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
 	if err != nil {

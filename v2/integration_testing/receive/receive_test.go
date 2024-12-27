@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,6 +17,7 @@ import (
 	"time"
 
 	itest "github.com/forestnode-io/oneshot/v2/integration_testing"
+	"github.com/forestnode-io/oneshot/v2/pkg/configuration"
 	"github.com/forestnode-io/oneshot/v2/pkg/output"
 	"github.com/stretchr/testify/suite"
 )
@@ -232,7 +236,7 @@ func (suite *ts) Test_FROM_ANY_TO_Stdout__JSON() {
 	resp, err := client.Post(fmt.Sprintf("http://127.0.0.1:%s/?q=1", oneshot.Port), "text/plain", bytes.NewReader([]byte("SUCCESS")))
 	suite.Require().NoError(err)
 	suite.Require().NotNil(resp)
-	suite.Assert().Equal(resp.StatusCode, http.StatusOK)
+	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
 	resp.Body.Close()
 
 	oneshot.Wait()
@@ -327,7 +331,7 @@ func (suite *ts) Test_MultipleClients() {
 	for code := range responses {
 		if code == 200 {
 			oks++
-		} else if code == http.StatusGone {
+		} else {
 			gones++
 		}
 	}
@@ -344,4 +348,138 @@ func (suite *ts) Test_MultipleClients() {
 
 	stderr := oneshot.Stderr.(*bytes.Buffer).Bytes()
 	suite.Assert().Contains(string(stderr), "success\n\x1b[?25h")
+}
+
+func (suite *ts) Test_TLS_FROM_ANY_TO_StdoutTTY__StderrTTY() {
+	var oneshot = suite.NewOneshot()
+	oneshot.Args = []string{"receive"}
+	oneshot.Env = []string{
+		"ONESHOT_TESTING_TTY_STDOUT=true",
+		"ONESHOT_TESTING_TTY_STDERR=true",
+	}
+	caFilePath := filepath.Join(oneshot.TempDir, "ca.pem")
+	oneshot.Configuration = &configuration.Root{
+		Server: configuration.Server{
+			TLS: &configuration.TLS{
+				Certificate: &configuration.StaticOrGeneratedCertificate{
+					GeneratedCertificate: &configuration.GeneratedCertificate{
+						Subject: &configuration.PKIXName{
+							CommonName: "localhost",
+						},
+						ExportCA: &configuration.FileExport{
+							Path: caFilePath,
+						},
+					},
+				},
+			},
+		},
+	}
+	oneshot.Start()
+	defer oneshot.Cleanup()
+
+	suite.WaitForFileToExist(caFilePath, time.Second)
+	rootCAFile, err := os.ReadFile(caFilePath)
+	suite.Require().NoError(err)
+	suite.Require().NotEmpty(rootCAFile)
+
+	certPool := x509.NewCertPool()
+	ok := certPool.AppendCertsFromPEM(rootCAFile)
+	suite.Require().True(ok)
+
+	client := itest.RetryClient{
+		Suite: &suite.Suite,
+		TLSConfig: &tls.Config{
+			RootCAs: certPool,
+		},
+	}
+	resp, err := client.Post(fmt.Sprintf("https://127.0.0.1:%s", oneshot.Port), "text/plain", bytes.NewReader([]byte("SUCCESS")))
+	suite.Require().NoError(err)
+	suite.Require().NotNil(resp)
+	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
+	resp.Body.Close()
+
+	oneshot.Wait()
+	stdout := oneshot.Stdout.(*bytes.Buffer).Bytes()
+	suite.Assert().Equal("SUCCESS", string(stdout))
+
+	stderr := oneshot.Stderr.(*bytes.Buffer).Bytes()
+	suite.Assert().Regexp(`listening on https://.*\n`, string(stderr))
+}
+
+func (suite *ts) Test_MTLS_FROM_ANY_TO_StdoutTTY__StderrTTY() {
+	var oneshot = suite.NewOneshot()
+	oneshot.Args = []string{"receive"}
+	oneshot.Env = []string{
+		"ONESHOT_TESTING_TTY_STDOUT=true",
+		"ONESHOT_TESTING_TTY_STDERR=true",
+	}
+
+	clientCert, clientPKey := suite.GenerateSelfSignedCertAndKey(nil)
+
+	caFilePath := filepath.Join(oneshot.TempDir, "ca.pem")
+	oneshot.Configuration = &configuration.Root{
+		Server: configuration.Server{
+			TLS: &configuration.TLS{
+				Certificate: &configuration.StaticOrGeneratedCertificate{
+					GeneratedCertificate: &configuration.GeneratedCertificate{
+						Subject: &configuration.PKIXName{
+							CommonName: "localhost",
+						},
+						ExportCA: &configuration.FileExport{
+							Path: caFilePath,
+						},
+					},
+				},
+				MTLS: &configuration.MTLS{
+					Mode: configuration.MTLSModeRequire,
+					CertPool: &configuration.CertPool{
+						Certs: []configuration.PathOrContent{
+							{
+								Content: string(pem.EncodeToMemory(&pem.Block{
+									Type:  "CERTIFICATE",
+									Bytes: clientCert.Raw,
+								})),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	oneshot.Start()
+	defer oneshot.Cleanup()
+
+	suite.WaitForFileToExist(caFilePath, time.Second)
+	rootCAFile, err := os.ReadFile(caFilePath)
+	suite.Require().NoError(err)
+	suite.Require().NotEmpty(rootCAFile)
+
+	certPool := x509.NewCertPool()
+	ok := certPool.AppendCertsFromPEM(rootCAFile)
+	suite.Require().True(ok)
+
+	client := itest.RetryClient{
+		Suite: &suite.Suite,
+		TLSConfig: &tls.Config{
+			RootCAs: certPool,
+			Certificates: []tls.Certificate{
+				{
+					Certificate: [][]byte{clientCert.Raw},
+					PrivateKey:  clientPKey,
+				},
+			},
+		},
+	}
+	resp, err := client.Post(fmt.Sprintf("https://127.0.0.1:%s", oneshot.Port), "text/plain", bytes.NewReader([]byte("SUCCESS")))
+	suite.Require().NoError(err)
+	suite.Require().NotNil(resp)
+	suite.Assert().Equal(http.StatusOK, resp.StatusCode)
+	resp.Body.Close()
+
+	oneshot.Wait()
+	stdout := oneshot.Stdout.(*bytes.Buffer).Bytes()
+	suite.Assert().Equal("SUCCESS", string(stdout))
+
+	stderr := oneshot.Stderr.(*bytes.Buffer).Bytes()
+	suite.Assert().Regexp(`listening on https://.*\n`, string(stderr))
 }

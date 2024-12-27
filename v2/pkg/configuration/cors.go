@@ -15,7 +15,7 @@ type CORS struct {
 	MaxAge              int      `mapstructure:"maxAge" yaml:"maxAge"`
 	AllowCredentials    bool     `mapstructure:"allowCredentials" yaml:"allowCredentials"`
 	AllowPrivateNetwork bool     `mapstructure:"allowPrivateNetwork" yaml:"allowPrivateNetwork"`
-	SuccessStatus       int      `mapstructure:"successStatus" yaml:"successStatus"`
+	SuccessStatus       int      `mapstructure:"successStatus" yaml:"successStatus,omitempty"`
 }
 
 func setCORSFlags(cmd *cobra.Command) {

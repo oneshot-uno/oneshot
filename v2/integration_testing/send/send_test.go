@@ -464,7 +464,7 @@ func (suite *ts) Test_MultipleClients() {
 	for code := range responses {
 		if code == 200 {
 			oks++
-		} else if code == http.StatusGone {
+		} else {
 			gones++
 		}
 	}

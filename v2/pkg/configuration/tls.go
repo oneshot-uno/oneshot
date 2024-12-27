@@ -38,6 +38,15 @@ type GeneratedCertificate struct {
 	GenerateAtStartup       bool        `mapstructure:"generateAtStartup" yaml:"generateAtStartup"`
 }
 
+const defaultPrivatyeKeyAlgorithm = "ecdsa-p384"
+
+func (gc GeneratedCertificate) GetPrivateKeyAlgorithm() string {
+	if gc.PrivateKeyAlgorithm == "" {
+		return defaultPrivatyeKeyAlgorithm
+	}
+	return gc.PrivateKeyAlgorithm
+}
+
 type StaticOrGeneratedCertificate struct {
 	Certificate          *PathOrContent        `mapstructure:"certificate" yaml:"certificate"`
 	GeneratedCertificate *GeneratedCertificate `mapstructure:"generatedCertificate" yaml:"generatedCertificate"`
@@ -69,8 +78,8 @@ const (
 )
 
 type CertPool struct {
-	UseSystemRoots bool     `mapstructure:"useSystemRoots" yaml:"useSystemRoots"`
-	Certs          []string `mapstructure:"certs" yaml:"certs"`
+	UseSystemRoots bool            `mapstructure:"useSystemRoots" yaml:"useSystemRoots"`
+	Certs          []PathOrContent `mapstructure:"certs" yaml:"certs"`
 }
 
 type MTLS struct {

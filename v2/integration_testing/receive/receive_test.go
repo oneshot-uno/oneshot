@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -386,10 +387,23 @@ func (suite *ts) Test_TLS_FROM_ANY_TO_StdoutTTY__StderrTTY() {
 	ok := certPool.AppendCertsFromPEM(rootCAFile)
 	suite.Require().True(ok)
 
+	var certValidationError error
+
 	client := itest.RetryClient{
 		Suite: &suite.Suite,
 		TLSConfig: &tls.Config{
 			RootCAs: certPool,
+			VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+				rootCert := verifiedChains[0][len(verifiedChains[0])-1]
+				if rootCert.Subject.CommonName != "oneshot-local-ca" {
+					certValidationError = errors.Join(certValidationError, fmt.Errorf("unexpected root cert subject: %+v", rootCert.Subject))
+				}
+				leafCert := verifiedChains[0][0]
+				if leafCert.Subject.CommonName != "localhost" {
+					certValidationError = errors.Join(certValidationError, fmt.Errorf("unexpected leaf cert subject: %+v", leafCert.Subject))
+				}
+				return nil
+			},
 		},
 	}
 	resp, err := client.Post(fmt.Sprintf("https://127.0.0.1:%s", oneshot.Port), "text/plain", bytes.NewReader([]byte("SUCCESS")))
@@ -404,6 +418,8 @@ func (suite *ts) Test_TLS_FROM_ANY_TO_StdoutTTY__StderrTTY() {
 
 	stderr := oneshot.Stderr.(*bytes.Buffer).Bytes()
 	suite.Assert().Regexp(`listening on https://.*\n`, string(stderr))
+
+	suite.Require().NoError(certValidationError)
 }
 
 func (suite *ts) Test_MTLS_FROM_ANY_TO_StdoutTTY__StderrTTY() {

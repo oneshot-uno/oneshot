@@ -18,6 +18,7 @@ type PKIXName struct {
 
 func (pn PKIXName) ToStdLib() pkix.Name {
 	return pkix.Name{
+		CommonName:         pn.CommonName,
 		Country:            pn.Country,
 		Organization:       pn.Organization,
 		OrganizationalUnit: pn.OrganizationalUnit,

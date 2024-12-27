@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
 	"math/big"
@@ -148,6 +149,7 @@ func generateRootCertAndKey(config *configuration.GeneratedCertificate) (*x509.C
 	rootCertTemplate.IsCA = true
 	rootCertTemplate.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
 	rootCertTemplate.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}
+	rootCertTemplate.Subject.CommonName = "oneshot-local-ca"
 
 	rootCertBytes, err := x509.CreateCertificate(rand.Reader, rootCertTemplate, rootCertTemplate, rootPubKey, rootPrivKey)
 	if err != nil {
@@ -298,9 +300,11 @@ func CertFromConfig(config *configuration.GeneratedCertificate, isLeaf bool) (*x
 
 	if config.Subject != nil {
 		cert.Subject = config.Subject.ToStdLib()
+	} else {
+		cert.Subject = pkix.Name{}
 	}
 
-	if config.Subject.CommonName == "" {
+	if cert.Subject.CommonName == "" {
 		cert.Subject.CommonName = "oneshot"
 		if !isLeaf {
 			cert.Subject.CommonName += "-local-ca"
